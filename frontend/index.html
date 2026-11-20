@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<title>SignCam — Эфир</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05070c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/portal.css">
+<style>
+:root{
+  --ink:var(--pt-ink); --ink2:var(--pt-ink2); --ink3:var(--pt-ink3);
+  --line:var(--pt-line); --line2:var(--pt-line2);
+  --acc:var(--pt-acc); --acc2:var(--pt-acc2);
+  --gold:#f3cf8e; --red:#ff7a7a;
+  --surface:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);background:transparent;min-height:100vh;
+  font:15px/1.5 var(--pt-font);-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11"}
+button{font:inherit;color:inherit}
+
+.live{max-width:1240px;margin:0 auto;padding:8px clamp(16px,3vw,32px) 48px}
+
+/* ---------- строка над сценой ---------- */
+.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+  flex-wrap:wrap;margin:14px 2px 22px}
+.eyebrow{font-family:var(--pt-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink3);display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:18px;height:1px;background:linear-gradient(90deg,var(--acc),transparent)}
+.intro h1{margin:8px 0 0;font-size:clamp(26px,3.4vw,40px);line-height:1.08;font-weight:600;
+  letter-spacing:-.035em}
+.intro h1 em{font-style:normal;color:transparent;
+  background:linear-gradient(100deg,var(--ink) 10%,var(--acc) 55%,var(--acc2));
+  -webkit-background-clip:text;background-clip:text}
+
+.pill{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 14px;border-radius:999px;
+  background:rgba(255,255,255,.035);border:1px solid var(--line);font-size:12.5px;color:var(--ink2);
+  white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ink3);flex:none;position:relative}
+.dot.on{background:var(--acc)}
+.dot.on::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--acc);
+  animation:ping 2.2s var(--pt-ease) infinite}
+.dot.err{background:var(--red)}
+@keyframes ping{from{opacity:.8;transform:scale(.6)}to{opacity:0;transform:scale(1.8)}}
+
+/* ---------- сцена ---------- */
+.deck{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:stretch}
+@media(max-width:980px){.deck{grid-template-columns:1fr}}
+
+.lens{--live:0;position:relative;border-radius:28px;padding:1px;isolation:isolate;
+  background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.04) 40%,rgba(64,156,255,.25));
+  box-shadow:0 40px 120px -20px rgba(0,0,0,.8),
+             0 0 calc(40px + 80px*var(--live)) calc(-30px + 20px*var(--live)) rgba(64,156,255,calc(.15 + .35*var(--live)));
+  transition:box-shadow .6s var(--pt-ease)}
+.lens{display:flex}
+.screen{position:relative;flex:1;min-height:560px;border-radius:27px;overflow:hidden;background:#020303}
+@media(max-width:980px){.screen{min-height:0;aspect-ratio:1}}
+#view{width:100%;height:100%;display:block;object-fit:cover;background:#000;
+  transition:transform .5s var(--pt-ease)}
+#view.mir{transform:scaleX(-1)}
+.screen::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.55)),
+    linear-gradient(180deg,rgba(0,0,0,.35),transparent 18%,transparent 62%,rgba(0,0,0,.65))}
+
+/* рамка области, которая уходит в модель */
+.roi{position:absolute;top:50%;left:50%;height:calc(100% - 44px);aspect-ratio:1;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:2;transition:all .5s var(--pt-ease)}
+.roi.full{height:calc(100% - 44px);width:calc(100% - 44px);aspect-ratio:auto}
+.roi i{position:absolute;width:28px;height:28px;border:2px solid rgba(255,255,255,.9);
+  filter:drop-shadow(0 0 6px rgba(0,0,0,.5))}
+.roi i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-top-left-radius:10px}
+.roi i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-top-right-radius:10px}
+.roi i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-bottom-left-radius:10px}
+.roi i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-bottom-right-radius:10px}
+
+.chip{position:absolute;z-index:3;display:flex;align-items:center;gap:8px;height:28px;padding:0 12px;
+  border-radius:999px;background:rgba(8,9,11,.5);border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  font-family:var(--pt-mono);font-size:10.5px;letter-spacing:.1em;color:rgba(255,255,255,.75)}
+#badge{top:18px;left:18px}
+#rec{top:18px;right:18px}
+#rec i{width:6px;height:6px;border-radius:50%;background:#ff5d5d;box-shadow:0 0 10px #ff5d5d;
+  animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.3}}
+
+/* субтитр: текущий жест прямо на видео */
+.caption{position:absolute;z-index:3;left:18px;right:18px;bottom:22px;display:flex;align-items:center;
+  gap:16px;padding:12px 18px 12px 12px;border-radius:20px;
+  background:rgba(10,11,14,.52);border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.ring{position:relative;width:54px;height:54px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:3}
+.ring .bg{stroke:rgba(255,255,255,.1)}
+.ring .fg{stroke:url(#ringGrad);stroke-linecap:round;stroke-dasharray:150.8;stroke-dashoffset:150.8;
+  transition:stroke-dashoffset .45s var(--pt-ease)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--pt-mono);
+  font-size:12px;font-weight:500;color:var(--ink2)}
+.caption .lbl{font-family:var(--pt-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+#now{font-size:clamp(22px,2.6vw,32px);font-weight:600;letter-spacing:-.025em;line-height:1.15;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#now.empty{color:var(--ink3);font-weight:400;font-size:clamp(17px,1.8vw,20px)}
+#now.pop{animation:pop .5s var(--pt-ease)}
+.nowru{font-size:12.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.2em}
+.nowru:not(:empty)::before{content:"орысша: "}
+@keyframes pop{from{opacity:0;transform:translateY(10px);filter:blur(6px)}}
+
+.scan{position:absolute;z-index:3;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.06)}
+.scan i{display:block;height:100%;width:0;background:linear-gradient(90deg,transparent,var(--acc) 60%,#fff);
+  box-shadow:0 0 12px var(--acc);transition:width .08s linear}
+
+.hint{position:absolute;inset:0;z-index:5;display:grid;place-items:center;text-align:center;padding:32px;
+  background:radial-gradient(60% 60% at 50% 45%,rgba(64,156,255,.08),transparent),rgba(4,5,6,.9);
+  transition:opacity .6s var(--pt-ease),visibility .6s}
+.hint.hidden{opacity:0;visibility:hidden}
+.hint .orb{width:72px;height:72px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid var(--line2);background:rgba(255,255,255,.03);position:relative}
+.hint .orb::before,.hint .orb::after{content:"";position:absolute;inset:-10px;border-radius:50%;
+  border:1px solid rgba(64,156,255,.3);animation:ping 2.6s var(--pt-ease) infinite}
+.hint .orb::after{animation-delay:1.3s}
+.hint .orb svg{width:28px;height:28px;color:var(--acc)}
+.hint h2{margin:0 0 6px;font-size:19px;font-weight:600;letter-spacing:-.02em}
+.hint p{margin:0;color:var(--ink2);font-size:14px;max-width:34ch}
+.hint .err{color:var(--red);font-family:var(--pt-mono);font-size:12px;margin-top:10px}
+
+/* ---------- правая колонка ---------- */
+.rail{display:flex;flex-direction:column;gap:14px}
+.card{position:relative;border-radius:22px;padding:18px;background:var(--surface);
+  border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.card h3{margin:0 0 14px;display:flex;align-items:center;justify-content:space-between;
+  font-family:var(--pt-mono);font-size:10.5px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink3)}
+.card h3 span{letter-spacing:.04em;text-transform:none}
+.card.grow{flex:1}
+
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:4px 10px;align-items:center;padding:7px 0}
+.mrow+.mrow{border-top:1px solid rgba(255,255,255,.04)}
+.mrow .nm{font-size:14px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .nm small{margin-left:7px;font-size:11.5px;font-weight:400;color:var(--ink3)}
+.mrow .pc{text-align:right;font-family:var(--pt-mono);font-size:11.5px;color:var(--ink3)}
+.mrow .tr{grid-column:1/-1;height:3px;border-radius:2px;background:rgba(255,255,255,.05);overflow:hidden}
+.mrow .tr i{display:block;height:100%;border-radius:2px;background:rgba(255,255,255,.22);
+  transition:width .4s var(--pt-ease)}
+.mrow.first .nm{color:var(--ink);font-weight:600}
+.mrow.first .pc{color:var(--acc)}
+.mrow.first .tr i{background:linear-gradient(90deg,var(--acc2),var(--acc))}
+.empty-list{color:var(--ink3);font-size:13.5px;padding:6px 0 2px}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;border-radius:14px;overflow:hidden;
+  background:var(--line)}
+.stat{background:#0c0d10;padding:12px 14px}
+.stat b{display:block;font-family:var(--pt-mono);font-size:18px;font-weight:500;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat span{font-size:11.5px;color:var(--ink3)}
+
+.toggles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tg{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:12px;border-radius:14px;
+  background:rgba(255,255,255,.025);border:1px solid var(--line);cursor:pointer;text-align:left;
+  font-size:12.5px;color:var(--ink2);transition:background .25s,border-color .25s,color .25s}
+.tg:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+.tg svg{width:18px;height:18px}
+.tg.act{color:var(--ink);border-color:rgba(64,156,255,.35);
+  background:linear-gradient(180deg,rgba(64,156,255,.12),rgba(64,156,255,.03))}
+.tg.act svg{color:var(--acc)}
+
+/* ---------- расшифровка ---------- */
+.script{margin-top:18px;border-radius:28px;padding:26px clamp(20px,3vw,34px) 30px;
+  background:var(--surface);border:1px solid var(--line);position:relative;overflow:hidden}
+.script::before{content:"";position:absolute;left:10%;right:10%;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(64,156,255,.5),transparent)}
+.script .top{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.script .top h3{margin:0;font-family:var(--pt-mono);font-size:10.5px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+.script .top .count{font-family:var(--pt-mono);font-size:11px;color:var(--ink3);
+  padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+.sp{flex:1}
+.ghost{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:999px;
+  background:rgba(255,255,255,.035);border:1px solid var(--line);cursor:pointer;font-size:13px;
+  color:var(--ink2);transition:background .2s,color .2s,border-color .2s}
+.ghost:hover{background:rgba(255,255,255,.07);color:var(--ink);border-color:var(--line2)}
+.ghost svg{width:14px;height:14px}
+.ghost.done{color:var(--acc);border-color:rgba(64,156,255,.35)}
+
+#text{font-size:clamp(24px,3vw,38px);line-height:1.35;min-height:1.35em;font-weight:500;letter-spacing:-.03em}
+#text .ph{color:var(--ink3);font-weight:400;font-size:clamp(17px,1.8vw,21px);letter-spacing:-.01em}
+#text .w{display:inline-block;margin-right:.3em;color:var(--ink2);transition:color 1.2s var(--pt-ease)}
+#text .w.fresh{color:var(--ink);animation:rise .6s var(--pt-ease)}
+#text .w.fresh::after{content:"";display:block;height:2px;margin-top:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--acc),transparent);animation:underline .8s var(--pt-ease)}
+@keyframes rise{from{opacity:0;transform:translateY(14px);filter:blur(8px)}}
+@keyframes underline{from{transform:scaleX(0);transform-origin:left}}
+
+.ru{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--ink3)}
+.ru b{font-family:var(--pt-mono);font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;margin-right:8px}
+
+/* дактиль */
+#finger{display:none;margin-top:20px;padding:16px 18px;border-radius:18px;
+  background:linear-gradient(180deg,rgba(243,207,142,.09),rgba(243,207,142,.02));
+  border:1px solid rgba(243,207,142,.22)}
+#finger.on{display:block;animation:rise .5s var(--pt-ease)}
+#finger .lbl{font-family:var(--pt-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(243,207,142,.8);margin-bottom:8px}
+#fword{font-family:var(--pt-mono);font-size:28px;letter-spacing:.3em;font-weight:500;color:var(--gold)}
+#fsug{margin-top:8px;font-size:14px;color:var(--ink2)}
+#fsug b{color:var(--gold);cursor:pointer;font-weight:600;border-bottom:1px dashed rgba(243,207,142,.5)}
+#fsug b:hover{border-bottom-style:solid}
+
+footer{margin-top:26px;display:flex;justify-content:center;gap:18px;flex-wrap:wrap;
+  font-family:var(--pt-mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink3)}
+footer span+span::before{content:"·";margin-right:18px;opacity:.5}
+</style>
+</head>
+<body>
+<script src="/portal.js"></script>
+
+<div id="rightSlot" hidden>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">қосылуда…</span></div>
+</div>
+
+<main class="live pt-stage">
+
+  <div class="intro">
+    <div>
+      <div class="eyebrow">Эфир · ымдау тілінен аудару</div>
+      <h1>Ымдап көрсетіңіз — <em>біз мәтінге аударамыз</em></h1>
+    </div>
+  </div>
+
+  <div class="deck">
+    <div class="lens" id="lens">
+      <div class="screen">
+        <video id="view" class="mir" autoplay playsinline muted></video>
+        <div class="roi" id="roi"><i></i><i></i><i></i><i></i></div>
+        <div class="chip" id="badge">КАМЕРА</div>
+        <div class="chip" id="rec" style="display:none"><i></i>ЭФИР</div>
+
+        <div class="caption">
+          <div class="ring">
+            <svg viewBox="0 0 54 54"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#7dd3ff"/><stop offset="1" stop-color="#409cff"/></linearGradient></defs>
+              <circle class="bg" cx="27" cy="27" r="24"/><circle class="fg" id="ring" cx="27" cy="27" r="24"/></svg>
+            <b id="ringPct">—</b>
+          </div>
+          <div style="min-width:0">
+            <div class="lbl">қазір</div>
+            <div class="empty" id="now">ым күтілуде</div>
+            <div class="nowru" id="nowRu"></div>
+          </div>
+        </div>
+
+        <div class="scan"><i id="scan"></i></div>
+
+        <div class="hint" id="hint">
+          <div>
+            <div class="orb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.5-2.5v9L15 14"/><rect x="3" y="6" width="12" height="12" rx="3"/></svg></div>
+            <h2>Камера керек</h2>
+            <p id="hintText">Браузер терезесінде рұқсат беріңіз — тану бірден басталады</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <div class="card grow">
+        <h3>Сәйкестіктер <span>үздік 5</span></h3>
+        <div id="cands"><div class="empty-list">Модель қозғалысты көргенде пайда болады</div></div>
+      </div>
+      <div class="card">
+        <h3>Көрсеткіштер</h3>
+        <div class="stats">
+          <div class="stat"><b id="mMs">—</b><span>бір шешімге</span></div>
+          <div class="stat"><b id="mFps">—</b><span>кадр / секунд</span></div>
+          <div class="stat"><b id="mWin">0</b><span>терезе</span></div>
+          <div class="stat"><b id="mWords">0</b><span>сөз</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Басқару</h3>
+        <div class="toggles">
+          <button class="tg act" id="mirBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M8 7 3 12l5 5V7zM16 7l5 5-5 5V7z"/></svg>
+            <span>Айна</span></button>
+          <button class="tg" id="cropBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+            <span id="cropLbl">Шаршы</span></button>
+          <button class="tg" id="pauseBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" id="pauseIco"><path d="M9 5v14M15 5v14"/></svg>
+            <span id="pauseLbl">Кідірту</span></button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="script">
+    <div class="top">
+      <h3>Мәтін</h3>
+      <span class="count" id="wordCount">0 сөз</span>
+      <div class="sp"></div>
+      <button class="ghost" id="copyBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+        <span>Көшіру</span></button>
+      <button class="ghost" id="clearBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>
+        <span>Тазалау</span></button>
+    </div>
+    <div id="text"><span class="ph">Мәтін осы жерде пайда болады. Қолыңызды жақтау ішінде ұстап, ымды асықпай көрсетіңіз.</span></div>
+    <div class="ru" id="textRu" hidden></div>
+
+    <div id="finger">
+      <div class="lbl">Дактиль · сөз әріппен</div>
+      <div id="fword"></div>
+      <div id="fsug"></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>easy_sign S3D</span><span>1598 ым</span><span>терезе 32 кадр · қадам 12 · 3 терезе орташасы</span>
+  </footer>
+</main>
+
+<canvas id="proc" width="224" height="224" style="display:none"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+$('ptRight').append(...$('rightSlot').children);
+
+const view=$('view'), video=view, proc=$('proc');
+// alpha:false — контекст без прозрачности заметно дешевле при отрисовке
+const pctx=proc.getContext('2d',{alpha:false});
+
+const SURE = 0.75;            // уверенность для мгновенной фиксации слова
+const STRIDE = 12;            // шаг окна на сервере — для полосы прогресса
+const LETTERS = new Set('абвгдеёжзийклмнопрстуфхцчшщъыьэюя'.split(''));
+const PLACEHOLDER = '<span class="ph">Мәтін осы жерде пайда болады. Қолыңызды жақтау ішінде ұстап, ымды асықпай көрсетіңіз.</span>';
+
+let ws=null, stream=null, paused=false;
+let mirror = localStorage.getItem('signcam.mirror') !== '0';
+let cropMode = localStorage.getItem('signcam.crop') || 'square';
+let VOCAB = [];
+const KK = {};                // русское название жеста -> казахский перевод
+const kk = w => KK[w] || w;
+
+const words=[];               // зафиксированные слова: {ru, kk}
+let lastCommitted=null;
+let stable={label:null,count:0};
+let noStreak=0;
+let sent=0, sentAtResult=0, fpsCount=0, fpsAt=Date.now();
+let fingerBuf=[];
+
+fetch('/vocab').then(r=>r.json()).then(d=>{VOCAB=d.words||[]; Object.assign(KK,d.kk||{})}).catch(()=>{});
+
+function setStatus(t,c){ $('status').textContent=t; $('dot').className='dot '+(c||''); }
+
+const plural = n => n+' сөз';
+
+/* уверенность текущего жеста: кольцо, процент и свечение вокруг камеры */
+function setConf(p){
+  $('ring').style.strokeDashoffset = 150.8*(1-p);
+  $('ringPct').textContent = p ? Math.round(p*100) : '—';
+  $('lens').style.setProperty('--live', p.toFixed(2));
+  window.ptEnergy && ptEnergy(p);
+}
+
+/* зафиксированное слово расходится волной по фону из центра камеры */
+function pulse(strength){
+  if(!window.ptPulse) return;
+  const r=$('lens').getBoundingClientRect();
+  ptPulse(r.left+r.width/2, r.top+r.height/2, strength);
+}
+
+/* ---------------- камера ---------------- */
+async function startCamera(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},
+             facingMode:'user'}, audio:false});
+    view.srcObject = stream;
+    await view.play();
+    $('hint').classList.add('hidden');
+    $('rec').style.display='flex';
+    $('badge').textContent = '224×224 → S3D';
+    connect();
+    setInterval(tick, 40);                        // ~25 кадров/с
+  }catch(err){
+    $('hintText').innerHTML = 'Браузер камераға рұқсат бермеді. Мекенжай жолында рұқсат беріп, бетті жаңартыңыз.'
+      + '<div class="err">'+err.message+'</div>';
+    setStatus('камера қолжетімсіз','err');
+  }
+}
+
+/* Кадрирование: 'square' — центральный квадрат, 'full' — весь кадр,
+   сжатый в квадрат (так подаёт кадры оригинальный easy_sign). */
+function draw(ctx,w,h){
+  const vw=video.videoWidth, vh=video.videoHeight;
+  if(!vw||!vh) return;
+  if(cropMode==='full'){ ctx.drawImage(video,0,0,vw,vh,0,0,w,h); return; }
+  const s=Math.min(vw,vh);
+  ctx.drawImage(video,(vw-s)/2,(vh-s)/2,s,s,0,0,w,h);
+}
+
+let encoding=false;
+function tick(){
+  if(paused || !video.videoWidth || !ws || ws.readyState!==1) return;
+  // не даём кадрам копиться: пока предыдущий кодируется или сокет
+  // не разгрёб очередь, новый не берём — иначе растёт задержка
+  if(encoding || ws.bufferedAmount > 200000) return;
+
+  draw(pctx,224,224);                           // в модель — без зеркала
+  encoding = true;
+  proc.toBlob(async b=>{                        // toBlob не блокирует поток,
+    encoding = false;                           // в отличие от toDataURL
+    if(!b || paused || !ws || ws.readyState!==1) return;
+    ws.send(await b.arrayBuffer());             // бинарь вместо base64: -33% трафика
+    sent++; fpsCount++;
+    $('scan').style.width = Math.min(100,(sent-sentAtResult)/STRIDE*100)+'%';
+    if(Date.now()-fpsAt>1000){
+      $('mFps').textContent = fpsCount; fpsCount=0; fpsAt=Date.now();
+    }
+  },'image/jpeg',0.8);
+}
+
+/* ---------------- соединение ---------------- */
+function connect(){
+  ws = new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws');
+  ws.onopen  = ()=> setStatus('модель дайын','on');
+  ws.onmessage = e => onResult(JSON.parse(e.data));
+  ws.onclose = ()=>{ setStatus('қайта қосылуда…','err'); setTimeout(connect,1500); };
+}
+
+function onResult(r){
+  if(r.type!=='result') return;
+  if(r.kk) KK[r.label]=r.kk;
+  (r.top||[]).forEach(c=>{ if(c.kk) KK[c.label]=c.kk; });
+  $('mMs').textContent = Math.round(r.ms)+' мс';
+  $('mWin').textContent = r.window;
+  sentAtResult = sent; $('scan').style.width='0%';
+  renderMatches(r.top);
+
+  const now=$('now');
+  if(r.gesture){
+    noStreak = 0;
+    if(now.textContent!==kk(r.label)){
+      now.textContent = kk(r.label);
+      $('nowRu').textContent = kk(r.label)!==r.label ? r.label : '';
+      now.classList.remove('empty','pop'); void now.offsetWidth; now.classList.add('pop');
+    }
+    setConf(r.conf);
+
+    if(stable.label===r.label) stable.count++; else stable={label:r.label,count:1};
+    // Уверенный жест фиксируем сразу: ждать второго окна — это ещё
+    // полсекунды неподвижной руки и второе такое же угадывание.
+    const need = r.conf>=SURE ? 1 : 2;
+    if(stable.count>=need && stable.label!==lastCommitted){
+      if(LETTERS.has(r.label)){ fingerBuf.push(r.label); renderFinger(); pulse(.4); }
+      else { flushFinger(); commit(r.label); }
+      lastCommitted = stable.label;
+      stable={label:null,count:0};
+    }
+  }else{
+    stable={label:null,count:0};
+    now.textContent = 'ым күтілуде';
+    $('nowRu').textContent = '';
+    now.classList.add('empty'); now.classList.remove('pop');
+    setConf(0);
+    if(++noStreak>=2){ lastCommitted=null; flushFinger(); }
+  }
+}
+
+/* ---------------- вывод ---------------- */
+function commit(word){
+  words.push({ru:word, kk:kk(word)});
+  $('mWords').textContent = words.length;
+  $('wordCount').textContent = plural(words.length);
+  const t=$('text');
+  if(words.length===1) t.innerHTML='';
+  t.querySelectorAll('.w.fresh').forEach(e=>e.classList.remove('fresh'));
+  const el=document.createElement('span');
+  el.className='w fresh'; el.textContent=kk(word); el.title=word;
+  t.appendChild(el);
+  $('textRu').hidden=false;
+  $('textRu').innerHTML='<b>орысша</b>'+words.map(w=>w.ru).join(' ').replace(/[&<>]/g,'');
+  pulse(1);
+}
+
+function renderMatches(top){
+  if(!top||!top.length) return;
+  $('cands').innerHTML = top.map((c,i)=>`
+    <div class="mrow ${i===0?'first':''}">
+      <div class="nm">${kk(c.label)}${kk(c.label)!==c.label?`<small>${c.label}</small>`:''}</div>
+      <div class="pc">${Math.round(c.conf*100)}%</div>
+      <div class="tr"><i style="width:${Math.round(c.conf*100)}%"></i></div>
+    </div>`).join('');
+}
+
+/* ---------------- дактиль ----------------
+   Подряд идущие буквы — это слово по буквам (имя, город, слово без
+   своего жеста). Копим отдельно и сверяем со словарём: одна буква
+   легко распознаётся криво. */
+function distance(a,b){                       // расстояние Левенштейна
+  const m=a.length,n=b.length;
+  if(Math.abs(m-n)>2) return 9;
+  let prev=[...Array(n+1).keys()];
+  for(let i=1;i<=m;i++){
+    const cur=[i];
+    for(let j=1;j<=n;j++)
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur;
+  }
+  return prev[n];
+}
+
+function renderFinger(){
+  const w = fingerBuf.join('');
+  if(!w){ $('finger').classList.remove('on'); return; }
+  $('finger').classList.add('on');
+  $('fword').textContent = w.toUpperCase();
+  if(w.length<2){ $('fsug').textContent='…'; return; }
+  if(VOCAB.includes(w)){ $('fsug').innerHTML='✓ сөздікте бар' + (kk(w)!==w?' · '+kk(w):''); return; }
+  const near = VOCAB.map(v=>[distance(w,v),v]).filter(([d])=>d<=2)
+                    .sort((a,b)=>a[0]-b[0]).slice(0,4);
+  $('fsug').innerHTML = near.length
+    ? 'ұқсас: ' + near.map(([d,v])=>`<b data-w="${v}">${kk(v)}</b>`).join(', ')
+    : 'сөздікте жоқ — есім не атау болуы мүмкін';
+}
+
+$('fsug').onclick = e =>{
+  const w = e.target.dataset && e.target.dataset.w;
+  if(w){ fingerBuf = w.split(''); flushFinger(); }
+};
+
+function flushFinger(){
+  const w = fingerBuf.join('');
+  fingerBuf = [];
+  $('finger').classList.remove('on');
+  if(w.length>=2) commit(w);
+}
+
+/* ---------------- управление ---------------- */
+function applyMirror(){
+  view.classList.toggle('mir', mirror);
+  $('mirBtn').classList.toggle('act', mirror);
+  localStorage.setItem('signcam.mirror', mirror?'1':'0');
+}
+$('mirBtn').onclick = ()=>{ mirror=!mirror; applyMirror(); };
+
+function applyCrop(){
+  $('cropLbl').textContent = cropMode==='square'?'Шаршы':'Толық кадр';
+  $('cropBtn').classList.toggle('act', cropMode==='full');
+  $('roi').classList.toggle('full', cropMode==='full');
+}
+$('cropBtn').onclick = ()=>{
+  cropMode = cropMode==='square'?'full':'square';
+  localStorage.setItem('signcam.crop',cropMode);
+  applyCrop();
+  if(ws&&ws.readyState===1) ws.send('reset');
+};
+
+$('pauseBtn').onclick = ()=>{
+  paused=!paused;
+  $('pauseLbl').textContent = paused?'Жалғастыру':'Кідірту';
+  $('pauseIco').innerHTML = paused ? '<path d="M7 4.5v15l12-7.5z"/>' : '<path d="M9 5v14M15 5v14"/>';
+  $('pauseBtn').classList.toggle('act',paused);
+  $('rec').style.display = paused?'none':'flex';
+  if(paused){ setConf(0); if(ws && ws.readyState===1) ws.send('reset'); }
+};
+
+$('clearBtn').onclick = ()=>{
+  words.length=0; lastCommitted=null; fingerBuf=[];
+  $('finger').classList.remove('on');
+  $('mWords').textContent='0';
+  $('wordCount').textContent=plural(0);
+  $('text').innerHTML=PLACEHOLDER;
+  $('textRu').hidden=true;
+};
+
+$('copyBtn').onclick = async ()=>{
+  if(!words.length) return;
+  await navigator.clipboard.writeText(words.map(w=>w.kk).join(' '));
+  const s=$('copyBtn').querySelector('span');
+  $('copyBtn').classList.add('done'); s.textContent='Көшірілді';
+  setTimeout(()=>{ $('copyBtn').classList.remove('done'); s.textContent='Көшіру'; },1400);
+};
+
+applyMirror(); applyCrop(); startCamera();
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+onnxruntime
+numpy<2.3  # 2.3+ требует X86_V2 — нет на старых виртуальных CPU (VPS airpoject)
+opencv-python-headless
+websockets
+python-multipart

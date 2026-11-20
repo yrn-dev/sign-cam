@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<title>SignCam — Оқу</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/portal.css">
+<style>
+:root{
+  --bg:#08090c; --panel:#12161d; --panel2:#0d1116; --line:rgba(255,255,255,.09);
+  --txt:#e8ecf2; --dim:rgba(232,236,242,.58); --dim2:rgba(232,236,242,.34);
+  --acc:#409cff; --blue:#7dd3ff; --gold:#ffc46b; --pink:#ff7ab8; --red:#ff6b6b; --r:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 700px at 50% -12%,#141a24 0%,transparent 62%),var(--bg);
+  color:var(--txt);font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:22px 20px 60px}
+
+header{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+.logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(145deg,var(--acc),var(--blue));color:#03101f}
+.brand small{display:block;font-weight:400;font-size:11px;color:var(--dim2)}
+.grow{flex:1}
+a.btn,button{font:inherit;font-size:13px;color:var(--txt);background:rgba(255,255,255,.05);
+  border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;
+  text-decoration:none;display:inline-block;transition:background .15s}
+a.btn:hover,button:hover{background:rgba(255,255,255,.09)}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--line);font-size:12.5px;color:var(--dim)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim2)}
+.dot.on{background:var(--acc);box-shadow:0 0 0 3px rgba(64,156,255,.15)}
+.dot.err{background:var(--red)}
+
+h1{font-size:30px;letter-spacing:-.02em;margin:18px 0 6px}
+.lead{color:var(--dim);max-width:70ch;margin:0 0 26px}
+
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:20px;margin-bottom:16px;position:relative;overflow:hidden}
+.step::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--acc))}
+.shead{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap}
+.num{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,var(--c,var(--acc)) 16%,transparent);color:var(--c,var(--acc));
+  font-size:13px;font-weight:700}
+.shead h2{font-size:18px;margin:0;letter-spacing:-.01em}
+.tech{font-size:11.5px;color:var(--dim2);font-family:ui-monospace,Menlo,monospace;
+  border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.sdesc{color:var(--dim);max-width:74ch;margin:0 0 16px;font-size:14.5px}
+.two{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:860px){.two{grid-template-columns:1fr}}
+
+.camBox{position:relative;aspect-ratio:1;background:#000;border-radius:12px;overflow:hidden;
+  border:1px solid var(--line)}
+#view{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
+.badge{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:4px 10px;
+  border-radius:999px;font-size:10.5px;letter-spacing:.1em;background:rgba(0,0,0,.6);
+  border:1px solid var(--line);color:var(--dim);backdrop-filter:blur(6px)}
+.hint{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;
+  background:rgba(6,8,11,.85);color:var(--dim);font-size:14px}
+.hint.hidden{display:none}
+
+.facts{display:flex;flex-direction:column;gap:8px}
+.fact{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  display:flex;align-items:center;gap:10px;font-size:13.5px}
+.fact b{font-variant-numeric:tabular-nums;font-size:17px;min-width:40px}
+.fact span{color:var(--dim)}
+
+.note{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:13.5px;
+  background:rgba(255,196,107,.07);border:1px solid rgba(255,196,107,.22);color:rgba(255,220,170,.9)}
+.note b{color:var(--gold)}
+
+/* лента кадров = буфер модели */
+.strip{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:8px}
+.strip canvas{width:100%;height:auto;border-radius:3px;display:block;opacity:.3;
+  transition:opacity .2s;aspect-ratio:1;background:#000}
+.strip canvas.hot{opacity:1;outline:1.5px solid var(--blue);outline-offset:1px}
+.striplbl{display:flex;justify-content:space-between;font-size:11px;color:var(--dim2);
+  margin:8px 2px 0;font-family:ui-monospace,Menlo,monospace}
+
+.mrow{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:10px;
+  padding:5px 0;font-size:13.5px}
+.mrow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
+.mrow.first .nm{color:var(--txt);font-weight:600}
+.mrow .tr{height:7px;border-radius:4px;background:rgba(255,255,255,.05);overflow:hidden;position:relative}
+.mrow .tr i{display:block;height:100%;background:rgba(255,255,255,.2);transition:width .3s}
+.mrow.first .tr i{background:var(--acc)}
+.mrow .tr::after{content:'';position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;
+  background:repeating-linear-gradient(180deg,rgba(255,107,107,.7) 0 3px,transparent 3px 6px)}
+.mrow .pc{text-align:right;font-size:12px;color:var(--dim2);font-variant-numeric:tabular-nums}
+.thrlbl{font-size:11px;color:var(--red);margin-top:4px;text-align:center}
+
+.out{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;
+  font-size:22px;min-height:64px;font-weight:500}
+.out .ph{color:var(--dim2);font-size:15px;font-weight:400}
+.out .w{display:inline-block;margin-right:.4em;animation:rise .3s}
+.out .w.fresh{color:var(--acc)}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--dim2);
+  margin-top:12px;font-family:ui-monospace,Menlo,monospace}
+.flow b{color:var(--txt);font-weight:500;background:rgba(255,255,255,.05);
+  border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-family:inherit}
+</style>
+</head>
+<body>
+<script src="/portal.js"></script>
+<div id="rightSlot" hidden><div class="pill"><span class="dot" id="dot"></span><span id="status">қосылуда…</span></div></div>
+<div class="wrap pt-stage">
+
+
+<h1>ЖИ ымдау тілін мәтінге қалай аударады</h1>
+<p class="lead">Төрт кезең, әрқайсысы сіздің камераңызда тікелей көрсетіледі. Нәтиже ғана
+емес, жүйе кіріске не алатыны және қай жерде қателесетіні де көрінеді.</p>
+
+<!-- 1 -->
+<section class="step" style="--c:var(--blue)">
+  <div class="shead"><div class="num">1</div><h2>Модель не алады</h2>
+    <span class="tech">32 кадр × 224×224</span></div>
+  <p class="sdesc">Модель қолды, саусақты немесе бетті бөлек ажыратпайды — ол 224×224
+    пиксельге дейін кішірейтілген <b>бүкіл кадрды</b> көреді. Және бір кадрды емес,
+    <b>қатарынан 32 кадрды</b>: ұзындығы 1,3 секунд бейне үзіндісін. Ым — бұл қозғалыс,
+    оны бір суреттен түсіну мүмкін емес.</p>
+  <div class="two">
+    <div class="camBox">
+      <video id="view" autoplay playsinline muted></video>
+      <div class="badge">СІЗДІҢ БЕЙНЕҢІЗ</div>
+      <div class="hint" id="hint">Камераға рұқсат беріңіз</div>
+    </div>
+    <div>
+      <div class="strip" id="strip"></div>
+      <div class="striplbl"><span>← ескі кадрлар</span><span id="stripNow">модель буфері</span><span>жаңа →</span></div>
+      <div class="flow">
+        <b>224×224</b> → <b>32 кадр буфері</b> → <b>тензор 1×3×32×224×224</b> → <b>S3D</b>
+      </div>
+      <div class="facts" style="margin-top:14px">
+        <div class="fact"><b id="fFps">—</b><span>кадр секунд сайын модельге жіберіледі</span></div>
+        <div class="fact"><b id="fSent">0</b><span>кадр жіберілді</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Көкпен дәл қазір жазылып жатқан кадр белгіленген. Осы кішкентай
+    суреттер — <b>нейрожелі көретіннің бәрі</b>. Буындарда нүкте де, белгілеу де жоқ:
+    тек өңделмеген бейне.</div>
+</section>
+
+<!-- 2 -->
+<section class="step" style="--c:var(--acc)">
+  <div class="shead"><div class="num">2</div><h2>Шешім: 1598 нұсқа және сенімділік</h2>
+    <span class="tech">S3D · 3D-орамдар</span></div>
+  <p class="sdesc">Модель өзі білетін 1598 ымның әрқайсысына баға беріп, оларды пайызға
+    айналдырады — қосындысы әрқашан 100%. Жоғарғы нұсқа жеңеді, бірақ тек
+    <b>50%-дан көп</b> жинаса ғана (қызыл пунктир). Әйтпесе жүйе ойдан шығармау үшін
+    үндемейді.</p>
+  <div id="cands"></div>
+  <div class="thrlbl">↑ пунктир — 50% шегі</div>
+  <div class="facts" style="margin-top:14px">
+    <div class="fact"><b id="fMs">—</b><span>бір шешімге кететін миллисекунд</span></div>
+    <div class="fact"><b id="fWin">0</b><span>терезе өңделді</span></div>
+  </div>
+  <div class="note">Бір терезе оңай қателеседі, сондықтан шешім <b>соңғы үш терезенің
+    орташасы</b> бойынша қабылданады. Кездейсоқ секіріс сөнеді, ал нақты ым сақталып,
+    жинақталады.</div>
+</section>
+
+<!-- 3 -->
+<section class="step" style="--c:var(--pink)">
+  <div class="shead"><div class="num">3</div><h2>Мәтінді құрастыру және дактиль</h2>
+    <span class="tech">сөздік: 1384 сөз</span></div>
+  <p class="sdesc">Танылған сөздер жолға тізіліп, бірден қазақшаға аударылады. Ерекше
+    жағдай — <b>дактиль</b>: есімдер мен атаулар әріппен көрсетіледі. Жүйе әріптердің
+    қатар келе жатқанын байқап, оларды сөзге біріктіреді және сөздікпен салыстырады —
+    бір қисық әріп бүкіл сөзді бұзбайды.</p>
+  <div class="out" id="out"><span class="ph">Мәтін осы жерде пайда болады — кадрға ым көрсетіңіз</span></div>
+  <div id="fingerBox" style="display:none;margin-top:12px" class="note">
+    <b>Дактиль:</b> <span id="fword" style="letter-spacing:.2em;font-size:19px"></span>
+    <div id="fsug" style="margin-top:5px;color:var(--dim)"></div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="step" style="--c:var(--red)">
+  <div class="shead"><div class="num">4</div><h2>Жүйе қай жерде қателеседі</h2>
+    <span class="tech">дәлдік 44%</span></div>
+  <p class="sdesc">Шынайы сандар: 32 кадрлық терезеде модель 100 жағдайдың шамамен
+    <b>44-інде</b> дұрыс табады. Көрсетілген бес ымның екеуі-үшеуі сенімді танылады.
+    Себебі баптауда емес, тапсырманың өзінде: 1598 өте ұқсас қозғалыс, әртүрлі адамдар,
+    әртүрлі жарық пен жылдамдық.</p>
+  <div class="facts">
+    <div class="fact"><b>44%</b><span>32 кадрлық терезедегі дұрыс жауап</span></div>
+    <div class="fact"><b>56%</b><span>64 кадрлық терезеде — дәлірек, бірақ екі есе баяу</span></div>
+    <div class="fact"><b>1598</b><span>сөздіктегі ым, оның ішінде әліпбидің 33 әрпі</span></div>
+  </div>
+  <div class="note">Модель <b>сеніммен қателесуі</b> мүмкін — сіз көрсетпеген ымға 93%
+    беруі ғажап емес. Нейрожеліның сенімділігі «оқыту кезінде көргеніме ұқсайды» дегенді
+    білдіреді, «мен дұрыспын» дегенді емес. Сондықтан сәйкестіктер тізімі керек: модель
+    нені қарастырғаны көрінеді.</div>
+</section>
+
+</div>
+
+<canvas id="proc" width="224" height="224" style="display:none"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+$('ptRight').append(...$('rightSlot').children);
+const view=$('view'), proc=$('proc');
+const pctx = proc.getContext('2d',{alpha:false});
+const LETTERS = new Set('абвгдеёжзийклмнопрстуфхцчшщъыьэюя'.split(''));
+const SURE=0.75, STRIP=32;
+
+let ws=null, VOCAB=[], words=[], fingerBuf=[], lastCommitted=null;
+let stable={label:null,count:0}, noStreak=0;
+let sent=0, fpsCount=0, fpsAt=Date.now(), encoding=false;
+
+fetch('/vocab').then(r=>r.json()).then(d=>{VOCAB=d.words||[]; Object.assign(KK,d.kk||{})}).catch(()=>{});
+const KK={}, kk=w=>KK[w]||w;
+const setStatus=(t,c)=>{ $('status').textContent=t; $('dot').className='dot '+(c||''); };
+
+/* лента: 32 миниатюры — буквально содержимое буфера модели */
+const strip=[];
+for(let i=0;i<STRIP;i++){
+  const c=document.createElement('canvas');
+  c.width=c.height=48;
+  $('strip').appendChild(c);
+  strip.push(c.getContext('2d',{alpha:false}));
+}
+let stripAt=0;
+
+/* ---------- отправка кадров ---------- */
+function tick(){
+  if(!view.videoWidth || !ws || ws.readyState!==1) return;
+  // кадр не берём, пока предыдущий кодируется или сокет не разгрёб очередь:
+  // иначе кадры копятся и растёт задержка
+  if(encoding || ws.bufferedAmount > 200000) return;
+
+  const vw=view.videoWidth, vh=view.videoHeight, s=Math.min(vw,vh);
+  pctx.drawImage(view,(vw-s)/2,(vh-s)/2,s,s,0,0,224,224);
+
+  const c = strip[stripAt];
+  c.drawImage(proc,0,0,48,48);
+  strip.forEach((x,i)=>x.canvas.classList.toggle('hot', i===stripAt));
+  stripAt = (stripAt+1)%STRIP;
+
+  encoding = true;
+  proc.toBlob(async b=>{                  // toBlob асинхронный, в отличие от toDataURL
+    encoding = false;
+    if(!b || !ws || ws.readyState!==1) return;
+    ws.send(await b.arrayBuffer());       // бинарь вместо base64: -33% трафика
+    sent++; fpsCount++;
+    $('fSent').textContent = sent;
+    if(Date.now()-fpsAt>1000){
+      $('fFps').textContent=fpsCount; fpsCount=0; fpsAt=Date.now();
+    }
+  },'image/jpeg',0.8);
+}
+
+/* ---------- соединение ---------- */
+function connect(){
+  ws = new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws');
+  ws.onopen = ()=> setStatus('модель дайын','on');
+  ws.onmessage = e => onResult(JSON.parse(e.data));
+  ws.onclose = ()=>{ setStatus('қайта қосылуда…','err'); setTimeout(connect,1500); };
+}
+
+function onResult(r){
+  if(r.type!=='result') return;
+  if(r.kk) KK[r.label]=r.kk;
+  (r.top||[]).forEach(c=>{ if(c.kk) KK[c.label]=c.kk; });
+  $('fMs').textContent = Math.round(r.ms);
+  $('fWin').textContent = r.window;
+  $('cands').innerHTML = (r.top||[]).map((c,i)=>`
+    <div class="mrow ${i===0?'first':''}">
+      <div class="nm" title="${c.label}">${kk(c.label)}</div>
+      <div class="tr"><i style="width:${Math.round(c.conf*100)}%"></i></div>
+      <div class="pc">${Math.round(c.conf*100)}%</div>
+    </div>`).join('');
+
+  if(r.gesture){
+    noStreak=0;
+    if(stable.label===r.label) stable.count++; else stable={label:r.label,count:1};
+    const need = r.conf>=SURE ? 1 : 2;
+    if(stable.count>=need && stable.label!==lastCommitted){
+      if(LETTERS.has(r.label)){ fingerBuf.push(r.label); renderFinger(); }
+      else { flushFinger(); commit(r.label); }
+      lastCommitted = stable.label;
+      stable={label:null,count:0};
+    }
+  }else{
+    stable={label:null,count:0};
+    if(++noStreak>=2){ lastCommitted=null; flushFinger(); }
+  }
+}
+
+function commit(w){
+  words.push(w);
+  const out=$('out');
+  if(words.length===1) out.innerHTML='';
+  out.querySelectorAll('.w.fresh').forEach(e=>e.classList.remove('fresh'));
+  const el=document.createElement('span');
+  el.className='w fresh'; el.textContent=kk(w); el.title=w;
+  out.appendChild(el);
+}
+
+/* ---------- дактиль ---------- */
+function distance(a,b){                   // расстояние Левенштейна
+  const m=a.length,n=b.length;
+  if(Math.abs(m-n)>2) return 9;
+  let prev=[...Array(n+1).keys()];
+  for(let i=1;i<=m;i++){
+    const cur=[i];
+    for(let j=1;j<=n;j++)
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur;
+  }
+  return prev[n];
+}
+
+function renderFinger(){
+  const w=fingerBuf.join('');
+  if(!w){ $('fingerBox').style.display='none'; return; }
+  $('fingerBox').style.display='block';
+  $('fword').textContent=w.toUpperCase();
+  if(w.length<2){ $('fsug').textContent='…'; return; }
+  if(VOCAB.includes(w)){ $('fsug').textContent='✓ сөздікте бар'; return; }
+  const near=VOCAB.map(v=>[distance(w,v),v]).filter(([d])=>d<=2)
+                  .sort((a,b)=>a[0]-b[0]).slice(0,4);
+  $('fsug').textContent = near.length
+    ? 'ұқсас: '+near.map(([d,v])=>kk(v)).join(', ')
+    : 'сөздікте жоқ — есім не атау болуы мүмкін';
+}
+
+function flushFinger(){
+  const w=fingerBuf.join(''); fingerBuf=[];
+  $('fingerBox').style.display='none';
+  if(w.length>=2) commit(w);
+}
+
+/* ---------- старт ---------- */
+(async function start(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30},
+             facingMode:'user'},audio:false});
+    view.srcObject=stream; await view.play();
+    $('hint').classList.add('hidden');
+  }catch(e){
+    $('hint').innerHTML='Камераға қолжетімділік жоқ:<br>'+e.message;
+    setStatus('камера қолжетімсіз','err');
+    return;
+  }
+  connect();
+  setInterval(tick,40);
+})();
+</script>
+</body>
+</html>

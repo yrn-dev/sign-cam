@@ -1,0 +1,149 @@
+/* Оболочка портала SignCam: атмосфера, шапка с режимами, переход между ними.
+   Подключается на всех страницах; все имена с префиксом pt-, чтобы не
+   задевать собственные стили страниц. */
+:root{
+  --pt-bg:#05070c;
+  --pt-ink:#f3f2ee; --pt-ink2:rgba(243,242,238,.62); --pt-ink3:rgba(243,242,238,.36);
+  --pt-line:rgba(255,255,255,.08); --pt-line2:rgba(255,255,255,.14);
+  --pt-glass:rgba(20,22,27,.55);
+  --pt-acc:#409cff; --pt-acc2:#7dd3ff;
+  --pt-ease:cubic-bezier(.22,1,.36,1);
+  --pt-spring:cubic-bezier(.34,1.32,.5,1);
+  --pt-font:"Onest",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --pt-mono:"Roboto Mono",ui-monospace,Menlo,monospace;
+}
+html{background:var(--pt-bg)}
+
+/* ---------- атмосфера ----------
+   Всё движение здесь — только transform и opacity: их двигает видеокарта,
+   без перерисовки и без нагрузки на главный поток, где кодируются кадры
+   с камеры. Размытые пятна нарисованы градиентом, а не filter: blur. */
+.pt-atmos{--pt-energy:0;position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;contain:strict}
+
+/* северное сияние: три медленных пятна света */
+.pt-aur{position:absolute;width:80vmax;height:80vmax;border-radius:50%;will-change:transform;
+  opacity:calc(.55 + .45*var(--pt-energy));transition:opacity 1.2s var(--pt-ease)}
+.pt-aur.a{left:-22vmax;top:-46vmax;
+  background:radial-gradient(closest-side,rgba(64,156,255,.20),rgba(64,156,255,.06) 45%,transparent);
+  animation:pt-a 42s ease-in-out infinite alternate}
+.pt-aur.b{right:-30vmax;top:-40vmax;
+  background:radial-gradient(closest-side,rgba(125,211,255,.19),rgba(125,211,255,.05) 45%,transparent);
+  animation:pt-b 54s ease-in-out infinite alternate}
+.pt-aur.c{left:20vmax;bottom:-62vmax;
+  background:radial-gradient(closest-side,rgba(90,110,255,.09),rgba(64,156,255,.03) 50%,transparent);
+  animation:pt-c 66s ease-in-out infinite alternate}
+@keyframes pt-a{50%{transform:translate3d(14vmax,8vmax,0) scale(1.15)}to{transform:translate3d(24vmax,-2vmax,0) scale(.92)}}
+@keyframes pt-b{50%{transform:translate3d(-16vmax,12vmax,0) scale(.9)}to{transform:translate3d(-6vmax,20vmax,0) scale(1.18)}}
+@keyframes pt-c{to{transform:translate3d(-18vmax,-14vmax,0) scale(1.2)}}
+
+/* точечная сетка: едва видна сверху и растворяется к краям */
+.pt-grid{position:absolute;inset:0;
+  background-image:radial-gradient(rgba(255,255,255,.11) 1px,transparent 1.5px);
+  background-size:30px 30px;background-position:center -8px;
+  -webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 18%,#000 10%,transparent 75%);
+          mask-image:radial-gradient(ellipse 70% 60% at 50% 18%,#000 10%,transparent 75%)}
+
+/* свет за курсором */
+.pt-glow{position:absolute;left:0;top:0;width:640px;height:640px;margin:-320px 0 0 -320px;
+  border-radius:50%;will-change:transform;opacity:0;transition:opacity .8s var(--pt-ease);
+  background:radial-gradient(closest-side,rgba(64,156,255,.07),rgba(125,211,255,.03) 50%,transparent)}
+.pt-glow.on{opacity:1}
+
+/* волна от распознанного жеста */
+.pt-wave{position:absolute;left:0;top:0;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;
+  will-change:transform,opacity;
+  border:1.5px solid rgba(64,156,255,.8);
+  background:radial-gradient(closest-side,transparent 60%,rgba(64,156,255,.16));
+  box-shadow:0 0 24px rgba(64,156,255,.25);
+  animation:pt-wave 2.6s cubic-bezier(.2,.8,.3,1) forwards}
+.pt-wave.soft{border-color:rgba(125,211,255,.5);box-shadow:none;animation-delay:.18s;opacity:0}
+@keyframes pt-wave{from{transform:translate3d(var(--wx),var(--wy),0) scale(.2);opacity:1}
+  to{transform:translate3d(var(--wx),var(--wy),0) scale(var(--ws,9));opacity:0}}
+
+/* зерно: обычная полупрозрачная текстура поверх, без mix-blend-mode —
+   режим наложения заставлял пересчитывать весь экран на каждом кадре */
+.pt-atmos::after{content:"";position:absolute;inset:0;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* вкладка скрыта — стоим; слабое устройство — без постоянного движения */
+.pt-idle .pt-atmos *,.pt-idle .pt-atmos *::after{animation-play-state:paused}
+.pt-lite .pt-aur{animation:none}
+.pt-lite .pt-glow{display:none}
+
+/* ---------- шапка ---------- */
+.pt-bar{position:sticky;top:0;z-index:50;display:grid;grid-template-columns:1fr auto 1fr;
+  align-items:center;gap:16px;padding:14px clamp(16px,3vw,32px);
+  font-family:var(--pt-font);color:var(--pt-ink);
+  /* без backdrop-filter: под шапкой всё время движется фон, и размытие
+     пересчитывалось бы на каждом кадре */
+  background:linear-gradient(180deg,rgba(5,7,12,.94),rgba(5,7,12,.78) 65%,rgba(5,7,12,0))}
+.pt-brand{display:flex;align-items:center;gap:11px;color:inherit;text-decoration:none;
+  justify-self:start;min-width:0}
+.pt-mark{width:32px;height:32px;flex:none;border-radius:10px;display:grid;place-items:center;
+  background:
+    radial-gradient(120% 120% at 20% 0%,rgba(64,156,255,.35),transparent 60%),
+    linear-gradient(160deg,#1b1f26,#0d0f13);
+  border:1px solid var(--pt-line2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 6px 20px rgba(0,0,0,.4)}
+.pt-mark svg{width:17px;height:17px}
+.pt-name{font-weight:600;font-size:15.5px;letter-spacing:-.01em;line-height:1.1}
+.pt-name small{display:block;font-weight:400;font-size:11px;color:var(--pt-ink3);
+  letter-spacing:.02em;margin-top:2px}
+.pt-right{justify-self:end;display:flex;align-items:center;gap:10px}
+
+/* переключатель режимов */
+.pt-modes{position:relative;display:flex;gap:2px;padding:4px;border-radius:999px;
+  background:rgba(255,255,255,.035);border:1px solid var(--pt-line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 40px rgba(0,0,0,.35)}
+.pt-glide{position:absolute;top:4px;bottom:4px;left:0;width:0;border-radius:999px;
+  transform:translateX(var(--x,0px));width:var(--w,0px);
+  background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 6px 22px rgba(0,0,0,.45),
+             0 0 0 1px rgba(0,0,0,.2),0 0 32px -6px rgba(64,156,255,.35);
+  opacity:0}
+.pt-glide.ready{opacity:1;transition:transform .62s var(--pt-spring),width .62s var(--pt-spring)}
+.pt-glide.snap{transition:none}
+.pt-mode{position:relative;z-index:1;display:flex;align-items:center;gap:8px;
+  padding:9px 17px 9px 14px;border-radius:999px;text-decoration:none;
+  color:var(--pt-ink2);font-size:13.5px;font-weight:500;letter-spacing:-.005em;white-space:nowrap;
+  transition:color .35s var(--pt-ease)}
+.pt-mode svg{width:16px;height:16px;flex:none;opacity:.7;transition:opacity .35s,transform .5s var(--pt-spring)}
+.pt-mode:hover{color:var(--pt-ink)}
+.pt-mode:hover svg{opacity:1;transform:translateY(-1px)}
+.pt-mode.on{color:var(--pt-ink)}
+.pt-mode.on svg{opacity:1;color:var(--pt-acc)}
+.pt-mode:focus-visible{outline:2px solid var(--pt-acc);outline-offset:2px}
+.pt-key{font-family:var(--pt-mono);font-size:10px;color:var(--pt-ink3);
+  border:1px solid var(--pt-line);border-radius:5px;padding:0 4px;margin-left:2px;line-height:15px}
+
+@media (max-width:860px){
+  .pt-bar{grid-template-columns:auto 1fr;row-gap:12px}
+  .pt-modes{grid-column:1/-1;grid-row:2;justify-self:center}
+  .pt-key{display:none}
+}
+@media (max-width:520px){
+  .pt-name small{display:none}
+  .pt-mode{padding:8px 12px 8px 10px;font-size:13px;gap:6px}
+}
+
+/* ---------- переход ---------- */
+.pt-veil{position:fixed;inset:0;z-index:100;pointer-events:none;
+  background:radial-gradient(circle at var(--vx,50%) var(--vy,0%),rgba(64,156,255,.14),transparent 45%),var(--pt-bg);
+  clip-path:circle(0 at var(--vx,50%) var(--vy,0%))}
+.pt-veil.grow{transition:clip-path .56s cubic-bezier(.7,0,.2,1);
+  clip-path:circle(150% at var(--vx,50%) var(--vy,0%))}
+.pt-veil.full{clip-path:circle(150% at var(--vx,50%) var(--vy,0%))}
+.pt-veil.fade{transition:opacity .7s var(--pt-ease),filter .7s var(--pt-ease);opacity:0;filter:blur(8px)}
+
+.pt-stage{transition:opacity .75s var(--pt-ease),transform .9s var(--pt-ease),filter .75s var(--pt-ease)}
+.pt-enter .pt-stage{opacity:0;transform:translateY(18px) scale(.992);filter:blur(10px)}
+.pt-leave .pt-stage{opacity:.25;transform:scale(.975);filter:blur(6px);
+  transition-duration:.45s}
+
+@media (prefers-reduced-motion:reduce){
+  .pt-aur{animation:none}
+  .pt-glow,.pt-wave{display:none}
+  .pt-glide.ready,.pt-stage,.pt-veil.grow,.pt-veil.fade{transition:none}
+  .pt-enter .pt-stage{opacity:1;transform:none;filter:none}
+}

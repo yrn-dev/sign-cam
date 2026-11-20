@@ -1,0 +1,8 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+server.log
+server.pid
+frontend.bak-20260916/
